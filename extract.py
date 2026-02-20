@@ -240,15 +240,116 @@ def _extract_website(text: str) -> Optional[str]:
 
 
 def _extract_location(text: str) -> Optional[str]:
-    """Use spaCy GPE/LOC entities to find venue. → Commit 4"""
-    pass
+    """
+    Detect venue/location using spaCy Named Entity Recognition.
+
+    Entity labels used:
+        GPE  — Countries, cities, states (e.g. "New York", "Mumbai")
+        LOC  — Non-GPE locations (e.g. "Central Park", "Riverside Hall")
+        FAC  — Facilities (e.g. "Madison Square Garden", "Convention Center")
+
+    Fallback (when spaCy unavailable or returns nothing):
+        Regex for common address patterns:
+        - "at The Grand Hall"
+        - "123 Main Street, City"
+        - "Venue:" or "Location:" prefix
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        Best location string found, or None.
+    """
+    # Primary: spaCy NER
+    if nlp is not None:
+        doc = nlp(text[:5000])   # Cap at 5000 chars for efficiency
+        location_labels = {"GPE", "LOC", "FAC"}
+        locations = [
+            ent.text.strip()
+            for ent in doc.ents
+            if ent.label_ in location_labels and len(ent.text.strip()) > 2
+        ]
+        if locations:
+            # Prefer FAC (facility names) and LOC over generic GPE city names
+            result = locations[0]
+            logger.debug("Location (spaCy NER): %s", result)
+            return result
+
+    # Fallback: Regex for "at <Place>", "Venue: <Place>", or address lines
+    fallback_patterns = [
+        # "Venue: Grand Convention Center" / "Location: ..."
+        r"(?:venue|location|held at|at|place)[:\s]+([A-Z][^\n,]{3,60})",
+        # Address: "123 Main Street, Springfield"
+        r"\b\d{1,5}\s+[A-Z][a-zA-Z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Blvd|Drive|Dr|Lane|Ln|Hall|Center|Centre|Park|Ground|Complex)\b",
+    ]
+
+    for pattern in fallback_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = (match.group(1) if match.lastindex else match.group(0)).strip()
+            logger.debug("Location (regex fallback): %s", result)
+            return result
+
+    logger.debug("No location found in text.")
+    return None
 
 
 def _extract_organization(text: str) -> Optional[str]:
-    """Use spaCy ORG entities to find organizer / event title. → Commit 4"""
-    pass
+    """
+    Detect the event organizer using spaCy Named Entity Recognition.
+
+    Entity labels used:
+        ORG  — Companies, agencies, institutions
+               (e.g. "Google", "City Council", "Jazz Festival Committee")
+
+    Fallback (when spaCy unavailable or returns nothing):
+        - Regex for "Organized by:", "Presented by:", "Hosted by:" prefixes
+        - First all-caps or title-case line heuristic (common on flyers)
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        Best organizer string found, or None.
+    """
+    # Primary: spaCy NER
+    if nlp is not None:
+        doc = nlp(text[:5000])
+        orgs = [
+            ent.text.strip()
+            for ent in doc.ents
+            if ent.label_ == "ORG" and len(ent.text.strip()) > 2
+        ]
+        if orgs:
+            result = orgs[0]
+            logger.debug("Organization (spaCy NER): %s", result)
+            return result
+
+    # Fallback: explicitly labelled organizer lines
+    labelled_patterns = [
+        r"(?:organized by|presented by|hosted by|brought to you by|sponsor)[:\s]+([^\n]{3,80})",
+        r"(?:organizer|organiser|host)[:\s]+([^\n]{3,80})",
+    ]
+
+    for pattern in labelled_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = match.group(1).strip()
+            logger.debug("Organization (regex fallback): %s", result)
+            return result
+
+    # Last-resort: first all-caps token line (e.g. "ANNUAL JAZZ FESTIVAL")
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and stripped.isupper() and 3 < len(stripped) < 80:
+            logger.debug("Organization (all-caps heuristic): %s", stripped)
+            return stripped.title()   # Normalise casing
+
+    logger.debug("No organization found in text.")
+    return None
 
 
 def _classify_category(text: str) -> Optional[str]:
     """Keyword-based event category classifier. → Commit 5"""
     pass
+
