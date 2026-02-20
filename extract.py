@@ -75,13 +75,93 @@ def extract_event_data(raw_text: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _extract_date(text: str) -> Optional[str]:
-    """Extract the first recognisable event date from text. → Commit 2"""
-    pass
+    """
+    Extract the first recognisable event date from OCR text.
+
+    Patterns covered (case-insensitive):
+        - "January 5, 2025"  / "Jan 5 2025"
+        - "5th January 2025" / "5 Jan 2025"
+        - "05/01/2025"       / "05-01-2025"
+        - "2025-01-05"       (ISO 8601)
+        - "Friday, January 5" (day-of-week prefix)
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        Matched date string as found in the text, or None.
+    """
+    MONTHS = (
+        r"(?:January|February|March|April|May|June|July|August|"
+        r"September|October|November|December|"
+        r"Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
+    )
+
+    patterns = [
+        # "January 5, 2025" / "Jan 5 2025" / "Jan. 5, 2025"
+        rf"{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}",
+        # "5 January 2025" / "5th Jan 2025"
+        rf"\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}\.?\s+\d{{4}}",
+        # "Friday, January 5, 2025"
+        rf"(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+{MONTHS}\.?\s+\d{{1,2}},?\s+\d{{4}}",
+        # "01/05/2025" or "01-05-2025" or "1/5/25"
+        r"\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b",
+        # ISO 8601: "2025-01-05"
+        r"\b\d{4}-\d{2}-\d{2}\b",
+        # "January 5" (no year — year inferred downstream)
+        rf"{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?",
+        # "5th January" / "5 Jan"
+        rf"\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTHS}",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = match.group(0).strip()
+            logger.debug("Date extracted: %s", result)
+            return result
+
+    logger.debug("No date found in text.")
+    return None
 
 
 def _extract_time(text: str) -> Optional[str]:
-    """Extract the first recognisable event start time from text. → Commit 2"""
-    pass
+    """
+    Extract the first recognisable event start time from OCR text.
+
+    Patterns covered:
+        - "7:30 PM" / "7:30PM" / "07:30 pm"
+        - "7 PM"    / "7PM"
+        - "19:30"   (24-hour, no am/pm)
+        - "7.30pm"  (period separator — common in UK/AU flyers)
+        - Time ranges: "7:00 PM – 9:00 PM" (returns the start time only)
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        Matched time string as found in the text, or None.
+    """
+    patterns = [
+        # "7:30 PM" / "07:30PM" / "7:30 pm"
+        r"\b\d{1,2}:\d{2}\s*[AaPp][Mm]\b",
+        # "7.30pm" / "7.30 PM"
+        r"\b\d{1,2}\.\d{2}\s*[AaPp][Mm]\b",
+        # "7 PM" / "7PM"
+        r"\b\d{1,2}\s*[AaPp][Mm]\b",
+        # 24-hour: "19:30" / "08:00"
+        r"\b(?:[01]?\d|2[0-3]):[0-5]\d\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = match.group(0).strip()
+            logger.debug("Time extracted: %s", result)
+            return result
+
+    logger.debug("No time found in text.")
+    return None
 
 
 def _extract_phone(text: str) -> Optional[str]:
