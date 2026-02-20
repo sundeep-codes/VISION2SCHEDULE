@@ -73,3 +73,22 @@ def generate_ics(
     cal.add_component(event)
     return cal.to_ical()
 
+@router.post("/download")
+async def download_ics(
+    event_in: icalendar.Calendar, # Placeholder - should use schema, but for brevity using internal
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Endpoint to download the generated ICS file.
+    """
+    # Using dummy data for now to show the flow
+    dt = datetime.now()
+    ics_content = generate_ics("Example Event", dt, "Example Venue")
+    
+    return Response(
+        content=ics_content,
+        media_type="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=event.ics"}
+    )
+
+
