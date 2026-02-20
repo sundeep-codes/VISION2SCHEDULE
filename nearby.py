@@ -66,7 +66,21 @@ def get_nearby_events(venue: str, category: Optional[str] = None, show_all: bool
     """
     Main entry point to fetch nearby events.
     """
-    pass
+    all_events = []
+    
+    # 1. Geocode venue
+    coords = geocode_venue(venue)
+    if coords:
+        # 2. Call Google Places API
+        places_events = fetch_google_places_events(coords["lat"], coords["lng"], category)
+        all_events.extend(places_events)
+    
+    # 3. Call Eventbrite API
+    eb_events = fetch_eventbrite_events(venue, category)
+    all_events.extend(eb_events)
+    
+    return all_events
+
 
 
 
