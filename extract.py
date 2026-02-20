@@ -59,15 +59,80 @@ def extract_event_data(raw_text: str) -> dict:
     """
     Main entry point — parse all event fields from raw OCR text.
 
+    Orchestrates all extractor functions in order and assembles
+    a single clean structured event dictionary ready for DB persistence
+    or Eventbrite/Calendar sync.
+
     Args:
         raw_text: Full string of text extracted by OCR.Space.
 
     Returns:
-        Structured event dict with keys:
-        title, date, time, venue, organizer, contact, website, category.
-        Any field that could not be extracted will be None.
+        Structured event dict:
+        {
+            "title"      : str | None,
+            "date"       : str | None,
+            "time"       : str | None,
+            "venue"      : str | None,
+            "organizer"  : str | None,
+            "contact"    : str | None,
+            "website"    : str | None,
+            "category"   : str | None,
+        }
+        Fields that could not be extracted are None.
     """
-    pass  # Implemented in commit 5 (assembly)
+    if not raw_text or not raw_text.strip():
+        logger.warning("extract_event_data called with empty text.")
+        return {
+            "title": None, "date": None, "time": None,
+            "venue": None, "organizer": None, "contact": None,
+            "website": None, "category": None,
+        }
+
+    logger.info("Extracting event data from OCR text (%d chars)", len(raw_text))
+
+    # Run all extractors
+    date       = _extract_date(raw_text)
+    time       = _extract_time(raw_text)
+    phone      = _extract_phone(raw_text)
+    website    = _extract_website(raw_text)
+    venue      = _extract_location(raw_text)
+    organizer  = _extract_organization(raw_text)
+    category   = _classify_category(raw_text)
+
+    # Title heuristic: use organizer if found, else first non-empty title-case line
+    title: Optional[str] = None
+    for line in raw_text.splitlines():
+        stripped = line.strip()
+        # A good title line is title-case or all-caps, between 4 and 80 chars,
+        # and does not look like a date, URL, or phone number
+        if (
+            stripped
+            and 4 <= len(stripped) <= 80
+            and not re.search(r"\d{4}|http|www|\+\d", stripped)
+            and (stripped.istitle() or stripped.isupper())
+        ):
+            title = stripped.title()
+            break
+
+    event = {
+        "title"     : title,
+        "date"      : date,
+        "time"      : time,
+        "venue"     : venue,
+        "organizer" : organizer,
+        "contact"   : phone,
+        "website"   : website,
+        "category"  : category,
+    }
+
+    extracted_count = sum(1 for v in event.values() if v is not None)
+    logger.info(
+        "Extraction complete: %d/%d fields extracted",
+        extracted_count, len(event)
+    )
+
+    return event
+
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +415,48 @@ def _extract_organization(text: str) -> Optional[str]:
 
 
 def _classify_category(text: str) -> Optional[str]:
-    """Keyword-based event category classifier. → Commit 5"""
-    pass
+    """
+    Classify the event into a category using keyword matching.
+
+    Categories and their keyword triggers:
+        Concert/Music   : music, concert, band, dj, live, festival, gig
+        Sports          : tournament, match, game, league, race, marathon, championship
+        Workshop        : workshop, training, seminar, class, bootcamp, course, learn
+        Conference      : conference, summit, symposium, forum, convention
+        Exhibition      : exhibition, expo, gallery, show, showcase, display
+        Food & Drink    : food, cuisine, tasting, dinner, brunch, feast, bar
+        Networking      : networking, meetup, mixer, social, connect
+        Fundraiser      : charity, fundraiser, donation, benefit, raffle, auction
+        Cultural        : cultural, dance, art, theatre, theater, comedy, film, cinema
+        Religious       : church, prayer, worship, mass, congregation, religious
+
+    Args:
+        text: Raw OCR text (case-insensitive matching).
+
+    Returns:
+        Category string, or None if no keywords matched.
+    """
+    CATEGORY_KEYWORDS: dict[str, list[str]] = {
+        "Concert / Music"   : ["music", "concert", "band", "dj", "live", "festival", "gig", "performance", "singer"],
+        "Sports"            : ["tournament", "match", "game", "league", "race", "marathon", "championship", "sports", "cup"],
+        "Workshop"          : ["workshop", "training", "seminar", "class", "bootcamp", "course", "learn", "skill"],
+        "Conference"        : ["conference", "summit", "symposium", "forum", "convention", "keynote", "panel"],
+        "Exhibition"        : ["exhibition", "expo", "gallery", "show", "showcase", "display", "fair"],
+        "Food & Drink"      : ["food", "cuisine", "tasting", "dinner", "brunch", "feast", "bar", "chef", "culinary"],
+        "Networking"        : ["networking", "meetup", "mixer", "social", "connect", "community"],
+        "Fundraiser"        : ["charity", "fundraiser", "donation", "benefit", "raffle", "auction", "gala"],
+        "Cultural"          : ["cultural", "dance", "art", "theatre", "theater", "comedy", "film", "cinema", "heritage"],
+        "Religious"         : ["church", "prayer", "worship", "mass", "congregation", "religious", "spiritual"],
+    }
+
+    text_lower = text.lower()
+
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        for keyword in keywords:
+            if re.search(rf"\b{re.escape(keyword)}\b", text_lower):
+                logger.debug("Category matched: %s (keyword: %s)", category, keyword)
+                return category
+
+    logger.debug("No category keywords matched.")
+    return None
 
