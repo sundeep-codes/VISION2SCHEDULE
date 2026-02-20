@@ -83,10 +83,19 @@ const Nearby = () => {
             )}
 
             {!loading && !error && events.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#666', border: '1px dashed #ccc', borderRadius: '8px' }}>
-                    No nearby events found. Try toggling "Show All Nearby".
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666', border: '1px dashed #ccc', borderRadius: '12px', backgroundColor: '#fff' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '10px' }}>🕵️‍♂️</div>
+                    <h3>No Nearby Events Found</h3>
+                    <p>We couldn't find any events in this area. Try toggling "Show All Nearby" to see more general results.</p>
+                    <button
+                        onClick={fetchNearby}
+                        style={{ marginTop: '15px', padding: '8px 20px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Refresh Search
+                    </button>
                 </div>
             )}
+
 
             {!loading && events.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
