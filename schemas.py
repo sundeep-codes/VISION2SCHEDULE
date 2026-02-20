@@ -144,6 +144,11 @@ class EventCreate(BaseModel):
         max_length=100,
         description="Event category e.g. Concert, Workshop, Sports"
     )
+    confidence_score: Optional[Decimal] = Field(
+        90.0,
+        description="Extraction confidence score (90.00–100.00)"
+    )
+
 
 
 class EventUpdate(BaseModel):

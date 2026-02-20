@@ -31,12 +31,12 @@ def create_event(
     """
     Save a structured event to the database.
     """
-    # Note: Linking to user is the next logical step per instructions
+    # Linking to user and storing confidence_score
     db_event = Event(
         **event_in.model_dump(),
-        user_id=current_user.id,
-        confidence_score=90.0 # Default/placeholder for this commit
+        user_id=current_user.id
     )
+
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
