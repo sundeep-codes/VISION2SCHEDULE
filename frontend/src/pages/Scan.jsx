@@ -31,6 +31,7 @@ const Scan = () => {
             });
             setOcrResult(response.data.ocr_result);
         } catch (err) {
+            // Handle API errors properly by displaying messages to the user
             setError(err.response?.data?.detail || 'An error occurred during OCR processing.');
         } finally {
             setLoading(false);
