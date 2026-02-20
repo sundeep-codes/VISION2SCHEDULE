@@ -6,7 +6,9 @@ import Dashboard from './pages/Dashboard';
 import Scan from './pages/Scan';
 import Results from './pages/Results';
 import Nearby from './pages/Nearby';
+import History from './pages/History';
 import ProtectedRoute from './components/ProtectedRoute';
+
 
 
 function App() {
@@ -48,6 +50,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <History />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* Default redirect to scan for now */}
           <Route path="/" element={<Navigate to="/scan" replace />} />
