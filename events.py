@@ -41,3 +41,15 @@ def create_event(
     db.commit()
     db.refresh(db_event)
     return db_event
+
+@router.get("/", response_model=List[EventOut])
+def get_user_events(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Return all events for the logged-in user.
+    """
+    events = db.query(Event).filter(Event.user_id == current_user.id).all()
+    return events
+
