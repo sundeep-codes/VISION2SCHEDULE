@@ -79,7 +79,17 @@ def get_nearby_events(venue: str, category: Optional[str] = None, show_all: bool
     eb_events = fetch_eventbrite_events(venue, category)
     all_events.extend(eb_events)
     
-    return all_events
+    # 4. Remove duplicates using simple string comparison (title)
+    unique_events = []
+    seen_titles = set()
+    for event in all_events:
+        title = event.get("title", "").strip().lower()
+        if title not in seen_titles:
+            unique_events.append(event)
+            seen_titles.add(title)
+            
+    return unique_events
+
 
 
 
