@@ -1,0 +1,43 @@
+"""
+events.py
+---------
+FastAPI router for event persistence and history — Vision2Schedule Phase 4.
+
+Endpoints:
+    POST /events      — Save a structured event to the database
+    GET  /events      — Retrieve history of saved events for the current user
+"""
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from typing import List
+
+from database import get_db
+from models import Event, User
+from schemas import EventCreate, EventOut
+from security import get_current_user
+
+router = APIRouter(
+    prefix="/events",
+    tags=["Events"],
+)
+
+@router.post("/", response_model=EventOut, status_code=status.HTTP_201_CREATED)
+def create_event(
+    event_in: EventCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Save a structured event to the database.
+    """
+    # Note: Linking to user is the next logical step per instructions
+    db_event = Event(
+        **event_in.model_dump(),
+        user_id=current_user.id,
+        confidence_score=90.0 # Default/placeholder for this commit
+    )
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    return db_event
