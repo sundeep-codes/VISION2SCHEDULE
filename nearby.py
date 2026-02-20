@@ -37,9 +37,23 @@ def geocode_venue(venue: str) -> Optional[Dict[str, float]]:
     logger.info(f"Geocoding venue: {venue}")
     return {"lat": 0.0, "lng": 0.0}
 
+def fetch_google_places_events(lat: float, lng: float, keyword: Optional[str] = None) -> List[Dict]:
+    """
+    Call Google Places API to find events within a 5km radius.
+    """
+    if not GOOGLE_MAPS_API_KEY:
+        logger.warning("Google Maps API key missing. Skipping Places API call.")
+        return []
+    
+    # Logic to call Google Places API (Stub/Simplified)
+    # Search radius = 5000 meters
+    logger.info(f"Fetching Google Places events near ({lat}, {lng}) with keyword: {keyword}")
+    return []
+
 def get_nearby_events(venue: str, category: Optional[str] = None, show_all: bool = False) -> List[Dict]:
     """
     Main entry point to fetch nearby events.
     """
     pass
+
 
