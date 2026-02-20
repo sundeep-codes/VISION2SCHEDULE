@@ -38,7 +38,12 @@ const History = () => {
                 </button>
             </div>
 
-            {loading && <div style={{ textAlign: 'center', padding: '40px' }}>Loading history...</div>}
+            {loading && (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <div className="loader">Loading your scan history...</div>
+                </div>
+            )}
+
 
             {error && (
                 <div style={{ padding: '15px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', marginBottom: '20px' }}>
