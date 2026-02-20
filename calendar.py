@@ -43,8 +43,16 @@ def validate_event_datetime(event_date: Optional[date], event_time: Optional[tim
             detail="Event date is required for calendar scheduling."
         )
     
+    # Ensure date is not in the deep past (simple validation)
+    if event_date.year < 2000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid event year. Please provide a realistic date."
+        )
+    
     t = event_time if event_time else time(0, 0)
     return datetime.combine(event_date, t)
+
 
 def generate_ics(
     title: str,
