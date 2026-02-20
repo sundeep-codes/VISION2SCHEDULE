@@ -13,11 +13,25 @@ const Results = () => {
         </div>
     );
 
+    const getScoreColor = (score) => {
+        if (score >= 95) return '#28a745';
+        if (score >= 90) return '#ffc107';
+        return '#dc3545';
+    };
+
     return (
         <div style={{ padding: '20px', maxWidth: '800px', margin: '40px auto', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-            <h1 style={{ textAlign: 'center', color: '#333' }}>Event Details</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f0f0f0', paddingBottom: '15px', marginBottom: '20px' }}>
+                <h1 style={{ margin: 0, color: '#333' }}>Event Results</h1>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold' }}>CONFIDENCE</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: getScoreColor(eventData.confidence_score) }}>
+                        {eventData.confidence_score ? `${eventData.confidence_score}%` : 'N/A'}
+                    </div>
+                </div>
+            </div>
 
-            <div style={{ padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', marginTop: '20px' }}>
+            <div style={{ padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
                 {detailItem('Title', eventData.title)}
                 {detailItem('Date', eventData.date)}
                 {detailItem('Time', eventData.time)}
