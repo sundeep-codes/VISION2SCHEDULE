@@ -29,6 +29,7 @@ import logging
 from typing import Optional
 
 import spacy
+from confidence import calculate_confidence
 
 # ---------------------------------------------------------------------------
 # Logger
@@ -125,10 +126,13 @@ def extract_event_data(raw_text: str) -> dict:
         "category"  : category,
     }
 
-    extracted_count = sum(1 for v in event.values() if v is not None)
+    # Attach confidence score (90-100%)
+    event["confidence_score"] = calculate_confidence(event)
+
+    extracted_count = sum(1 for v in event.values() if v is not None and v != event.get("confidence_score"))
     logger.info(
-        "Extraction complete: %d/%d fields extracted",
-        extracted_count, len(event)
+        "Extraction complete: %d/%d fields extracted | confidence: %.2f%%",
+        extracted_count, len(event) - 1, event["confidence_score"]
     )
 
     return event
