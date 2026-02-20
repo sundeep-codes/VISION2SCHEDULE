@@ -91,17 +91,37 @@ const Nearby = () => {
             {!loading && events.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {events.map((event, index) => (
-                        <div key={index} style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        <div key={index} style={{
+                            padding: '15px',
+                            border: '1px solid #ddd',
+                            borderRadius: '8px',
+                            backgroundColor: '#fff',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                            cursor: 'default'
+                        }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                            }}
+                        >
                             <h3 style={{ margin: '0 0 10px 0', color: '#007bff' }}>{event.title}</h3>
                             <div style={{ fontSize: '0.9em', color: '#444' }}>
                                 <p style={{ margin: '0 0 5px 0' }}>📍 {event.venue}</p>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>📏 Distance: {event.distance ? `${event.distance.toFixed(1)} km` : 'N/A'}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '12px', fontSize: '0.85em' }}>
+                                        📏 {event.distance ? `${event.distance.toFixed(1)} km away` : 'Distance N/A'}
+                                    </span>
                                     {event.date && <span style={{ fontWeight: 'bold' }}>📅 {event.date}</span>}
                                 </div>
                             </div>
                         </div>
                     ))}
+
                 </div>
             )}
         </div>
