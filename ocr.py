@@ -293,12 +293,66 @@ def _validate_file(file: UploadFile, file_size: int) -> None:
     """
     Validate uploaded file type and size before sending to OCR.
 
+    Checks run in order:
+    1. File has content (not zero bytes)
+    2. MIME type is in the allowed set
+    3. File size does not exceed MAX_FILE_SIZE_BYTES (5 MB)
+
     Args:
         file      : FastAPI UploadFile object.
-        file_size : Size of the file in bytes.
+        file_size : Size of the file in bytes (measured after reading).
 
     Raises:
-        HTTPException 400: Unsupported MIME type.
+        HTTPException 400: File is empty.
+        HTTPException 415: Unsupported MIME type / content type.
         HTTPException 413: File exceeds the 5 MB limit.
     """
-    pass  # Implemented in error handling commit
+    # Guard 1: Empty file body
+    if file_size == 0:
+        logger.warning("Rejected upload: zero-byte file | filename=%s", file.filename)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded file is empty. Please upload a valid flyer image.",
+        )
+
+    # Guard 2: MIME type allowlist
+    content_type: str = (file.content_type or "").lower().split(";")[0].strip()
+    if content_type not in ALLOWED_MIME_TYPES:
+        logger.warning(
+            "Rejected upload: unsupported MIME type | type=%s | filename=%s",
+            content_type,
+            file.filename,
+        )
+        allowed_list = ", ".join(sorted(ALLOWED_MIME_TYPES))
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                f"Unsupported file type: '{content_type}'. "
+                f"Allowed types: {allowed_list}"
+            ),
+        )
+
+    # Guard 3: File size limit (5 MB — OCR.Space free tier)
+    if file_size > MAX_FILE_SIZE_BYTES:
+        size_mb = file_size / (1024 * 1024)
+        max_mb = MAX_FILE_SIZE_BYTES / (1024 * 1024)
+        logger.warning(
+            "Rejected upload: file too large | size=%.2f MB | limit=%.0f MB | filename=%s",
+            size_mb,
+            max_mb,
+            file.filename,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"File is too large ({size_mb:.2f} MB). "
+                f"Maximum allowed size is {max_mb:.0f} MB."
+            ),
+        )
+
+    logger.debug(
+        "File validation passed | filename=%s | size=%d bytes | type=%s",
+        file.filename,
+        file_size,
+        content_type,
+    )
