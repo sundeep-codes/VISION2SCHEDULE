@@ -28,7 +28,8 @@ from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
+from starlette import status
 
 # ---------------------------------------------------------------------------
 # Load environment variables
@@ -66,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Public Interface (stubs — implemented in subsequent commits)
+# Public Interface
 # ---------------------------------------------------------------------------
 
 async def extract_text_from_image(file: UploadFile) -> dict:
@@ -92,7 +93,36 @@ async def extract_text_from_image(file: UploadFile) -> dict:
         HTTPException 422: OCR.Space returned an error or empty result.
         HTTPException 503: OCR.Space API is unreachable.
     """
-    pass  # Implemented in next commit
+    # Step 1: Read file bytes into memory
+    image_bytes: bytes = await file.read()
+
+    # Step 2: Validate file type + size (implemented fully in commit 4)
+    _validate_file(file, len(image_bytes))
+
+    logger.info(
+        "Starting OCR extraction | file=%s | size=%d bytes | type=%s",
+        file.filename,
+        len(image_bytes),
+        file.content_type,
+    )
+
+    # Step 3: Call OCR.Space API
+    raw_response = await _call_ocr_space_api(
+        image_bytes=image_bytes,
+        filename=file.filename or "upload.png",
+        content_type=file.content_type or "image/png",
+    )
+
+    # Step 4: Parse and return structured result
+    result = _parse_ocr_response(raw_response)
+
+    logger.info(
+        "OCR extraction complete | file=%s | word_count=%d",
+        file.filename,
+        result.get("word_count", 0),
+    )
+
+    return result
 
 
 async def _call_ocr_space_api(
@@ -102,6 +132,9 @@ async def _call_ocr_space_api(
 ) -> dict:
     """
     Send image bytes to the OCR.Space REST API via async HTTP POST.
+
+    Uses multipart/form-data exactly as required by the OCR.Space API spec:
+    https://ocr.space/ocrapi#PostFile
 
     Args:
         image_bytes  : Raw bytes of the uploaded image.
@@ -115,12 +148,86 @@ async def _call_ocr_space_api(
         HTTPException 503: Network failure or API timeout.
         HTTPException 422: API returned IsErroredOnProcessing = True.
     """
-    pass  # Implemented in next commit
+    if not OCR_SPACE_API_KEY:
+        logger.error("OCR_SPACE_API_KEY is not set in environment variables.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OCR service is not configured. Contact the administrator.",
+        )
+
+    # Build multipart form payload as required by OCR.Space API
+    form_data = {
+        "apikey": OCR_SPACE_API_KEY,
+        "language": OCR_SPACE_LANGUAGE,
+        "isOverlayRequired": "false",   # We only need the parsed text, not bounding boxes
+        "detectOrientation": "true",    # Auto-correct rotated flyers
+        "scale": "true",               # Upscale low-resolution images for better accuracy
+        "OCREngine": "2",              # Engine 2: better for complex layouts and mixed fonts
+        "isSearchablePdfHideTextLayer": "false",
+    }
+
+    files = {
+        "file": (filename, image_bytes, content_type),
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=OCR_SPACE_TIMEOUT) as client:
+            logger.debug("Sending image to OCR.Space API | engine=2 | lang=%s", OCR_SPACE_LANGUAGE)
+
+            response = await client.post(
+                OCR_SPACE_API_URL,
+                data=form_data,
+                files=files,
+            )
+
+            response.raise_for_status()   # Raises httpx.HTTPStatusError on 4xx/5xx
+            response_json: dict = response.json()
+
+            logger.debug("OCR.Space raw response received | status=%d", response.status_code)
+            return response_json
+
+    except httpx.TimeoutException:
+        logger.error("OCR.Space API timed out after %d seconds.", OCR_SPACE_TIMEOUT)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"OCR.Space API timed out after {OCR_SPACE_TIMEOUT} seconds. Please try again.",
+        )
+
+    except httpx.NetworkError as exc:
+        logger.error("OCR.Space network error: %s", str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cannot reach OCR.Space API. Check your internet connection.",
+        )
+
+    except httpx.HTTPStatusError as exc:
+        logger.error("OCR.Space HTTP error: %s %s", exc.response.status_code, exc.response.text)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"OCR.Space API returned an error: {exc.response.status_code}",
+        )
 
 
 def _parse_ocr_response(response: dict) -> dict:
     """
     Extract meaningful fields from the raw OCR.Space JSON response.
+
+    OCR.Space response structure:
+    {
+        "ParsedResults": [
+            {
+                "ParsedText": "...",
+                "ErrorMessage": "",
+                "ErrorDetails": "",
+                "TextOverlay": {...},
+                "OCRExitCode": 1,
+            }
+        ],
+        "OCRExitCode": 1,
+        "IsErroredOnProcessing": false,
+        "ProcessingTimeInMilliseconds": "531",
+        "SearchablePDFURL": "...",
+    }
 
     Args:
         response: Raw dict from OCR.Space API.
@@ -129,9 +236,57 @@ def _parse_ocr_response(response: dict) -> dict:
         Cleaned dict with raw_text, word_count, ocr_engine, is_searchable.
 
     Raises:
-        HTTPException 422: No parsed results in response body.
+        HTTPException 422: IsErroredOnProcessing is True or no parsed text found.
     """
-    pass  # Implemented in next commit
+    # Check for API-level processing error
+    if response.get("IsErroredOnProcessing", False):
+        error_msg = response.get("ErrorMessage", ["Unknown OCR processing error."])
+        if isinstance(error_msg, list):
+            error_msg = " ".join(error_msg)
+        logger.error("OCR.Space processing error: %s", error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"OCR processing failed: {error_msg}",
+        )
+
+    parsed_results: list = response.get("ParsedResults", [])
+
+    if not parsed_results:
+        logger.warning("OCR.Space returned empty ParsedResults.")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="OCR returned no results. The image may be blank, corrupted, or unreadable.",
+        )
+
+    # Concatenate all parsed text blocks (handles multi-page PDFs)
+    raw_text: str = "\n".join(
+        result.get("ParsedText", "").strip()
+        for result in parsed_results
+        if result.get("ParsedText", "").strip()
+    )
+
+    if not raw_text:
+        logger.warning("OCR.Space returned results but parsed text is empty.")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No readable text found in the image. Try a higher-resolution photo.",
+        )
+
+    word_count: int = len(raw_text.split())
+
+    # OCRExitCode 1 = parsed successfully
+    ocr_exit_code: int = response.get("OCRExitCode", -1)
+
+    # SearchablePDFURL is only present for PDF inputs
+    is_searchable: bool = bool(response.get("SearchablePDFURL"))
+
+    return {
+        "raw_text": raw_text,
+        "word_count": word_count,
+        "ocr_exit_code": ocr_exit_code,
+        "is_searchable": is_searchable,
+        "processing_time_ms": response.get("ProcessingTimeInMilliseconds", "N/A"),
+    }
 
 
 def _validate_file(file: UploadFile, file_size: int) -> None:
