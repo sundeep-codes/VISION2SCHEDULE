@@ -45,3 +45,31 @@ def validate_event_datetime(event_date: Optional[date], event_time: Optional[tim
     
     t = event_time if event_time else time(0, 0)
     return datetime.combine(event_date, t)
+
+def generate_ics(
+    title: str,
+    event_datetime: datetime,
+    venue: Optional[str] = None,
+    description: Optional[str] = None
+) -> bytes:
+    """
+    Generate a valid ICS file (VCALENDAR format).
+    """
+    cal = icalendar.Calendar()
+    cal.add('prodid', '-//Vision2Schedule//extract//EN')
+    cal.add('version', '2.0')
+
+    event = icalendar.Event()
+    event.add('summary', title)
+    event.add('dtstart', event_datetime)
+    event.add('dtend', event_datetime) # Simplified to point-in-time
+    event.add('dtstamp', datetime.utcnow())
+    
+    if venue:
+        event.add('location', venue)
+    if description:
+        event.add('description', description)
+        
+    cal.add_component(event)
+    return cal.to_ical()
+
