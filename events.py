@@ -50,6 +50,12 @@ def get_user_events(
     """
     Return all events for the logged-in user.
     """
-    events = db.query(Event).filter(Event.user_id == current_user.id).all()
+    events = (
+        db.query(Event)
+        .filter(Event.user_id == current_user.id)
+        .order_by(Event.created_at.desc())
+        .all()
+    )
     return events
+
 
