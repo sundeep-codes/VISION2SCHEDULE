@@ -16,7 +16,7 @@ const Scan = () => {
             return;
         }
 
-        setLoading(true);
+        setLoading(true); // Display loading state during processing
         setError('');
         setOcrResult(null);
 
