@@ -88,7 +88,12 @@ def get_nearby_events(venue: str, category: Optional[str] = None, show_all: bool
             unique_events.append(event)
             seen_titles.add(title)
             
+    # 5. Sort results by distance
+    # For now, we use a placeholder 'distance' field if present, otherwise no-op
+    unique_events.sort(key=lambda x: x.get("distance", float('inf')))
+            
     return unique_events
+
 
 
 
