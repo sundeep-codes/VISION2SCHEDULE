@@ -165,13 +165,78 @@ def _extract_time(text: str) -> Optional[str]:
 
 
 def _extract_phone(text: str) -> Optional[str]:
-    """Extract a phone/contact number from text. → Commit 3"""
-    pass
+    """
+    Extract a contact phone number from OCR text.
+
+    Patterns covered:
+        - E.164 international: "+1-800-555-0199", "+91 98765 43210"
+        - US format:           "(555) 867-5309", "555-867-5309"
+        - Plain digits:        "9876543210"  (10-digit)
+        - With extensions:     "555-1234 ext. 42"
+        - India mobile:        "+91-9999999999"
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        Best-matched phone string, or None.
+    """
+    patterns = [
+        # International with country code: "+1 (800) 555-0199" / "+91-98765-43210"
+        r"\+\d{1,3}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{3,5}[\s\-]?\d{4,6}",
+        # US/Canada: "(555) 867-5309" / "555-867-5309" / "555.867.5309"
+        r"\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}(?:\s*(?:ext|x)\.?\s*\d{1,5})?",
+        # Plain 10-digit: "9876543210"
+        r"\b\d{10}\b",
+        # 7-digit local: "867-5309"
+        r"\b\d{3}[\s.\-]\d{4}\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = match.group(0).strip()
+            logger.debug("Phone extracted: %s", result)
+            return result
+
+    logger.debug("No phone number found in text.")
+    return None
 
 
 def _extract_website(text: str) -> Optional[str]:
-    """Extract the first URL from text. → Commit 3"""
-    pass
+    """
+    Extract the first URL from OCR text.
+
+    Patterns covered:
+        - Full URL:    "https://www.example.com/events"
+        - HTTP:        "http://example.com"
+        - No scheme:   "www.example.com"
+        - Common TLDs: .com, .org, .net, .io, .co, .edu, .gov, .in, .uk
+
+    Args:
+        text: Raw OCR text.
+
+    Returns:
+        First matched URL string, or None.
+    """
+    patterns = [
+        # Full URL with scheme (http/https)
+        r"https?://(?:www\.)?[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+",
+        # www. prefix without scheme
+        r"www\.[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:[/\w\-.~?=%&]*)?",
+        # Bare domain with common TLDs
+        r"\b[a-zA-Z0-9\-]+\.(?:com|org|net|io|co|edu|gov|in|uk|event)(?:/[^\s]*)?\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            result = match.group(0).strip().rstrip(".,;)")
+            logger.debug("Website extracted: %s", result)
+            return result
+
+    logger.debug("No website URL found in text.")
+    return None
 
 
 def _extract_location(text: str) -> Optional[str]:
