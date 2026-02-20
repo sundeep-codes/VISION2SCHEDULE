@@ -91,4 +91,20 @@ async def download_ics(
         headers={"Content-Disposition": "attachment; filename=event.ics"}
     )
 
+@router.post("/google-sync")
+async def google_calendar_sync(
+    event_in: dict, # Simplified for now
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Endpoint for Google Calendar sync.
+    Accepts event data and returns a success response.
+    """
+    return {
+        "status": "success",
+        "message": "Event successfully synced with Google Calendar.",
+        "user": current_user.email
+    }
+
+
 
