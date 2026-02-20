@@ -50,10 +50,23 @@ def fetch_google_places_events(lat: float, lng: float, keyword: Optional[str] = 
     logger.info(f"Fetching Google Places events near ({lat}, {lng}) with keyword: {keyword}")
     return []
 
+def fetch_eventbrite_events(location: str, category: Optional[str] = None) -> List[Dict]:
+    """
+    Call Eventbrite API to find events in a specific location filtered by category.
+    """
+    if not EVENTBRITE_API_TOKEN:
+        logger.warning("Eventbrite API token missing. Skipping Eventbrite call.")
+        return []
+    
+    # Logic to call Eventbrite API (Stub/Simplified)
+    logger.info(f"Fetching Eventbrite events in {location} with category: {category}")
+    return []
+
 def get_nearby_events(venue: str, category: Optional[str] = None, show_all: bool = False) -> List[Dict]:
     """
     Main entry point to fetch nearby events.
     """
     pass
+
 
 
