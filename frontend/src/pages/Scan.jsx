@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ImageUpload from '../components/ImageUpload';
 import CameraCapture from '../components/CameraCapture';
 import api from '../services/api';
@@ -8,6 +9,7 @@ const Scan = () => {
     const [ocrResult, setOcrResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const navigate = useNavigate();
 
     const handleScan = async (selectedFile) => {
         const fileToUpload = selectedFile || file;
@@ -16,7 +18,7 @@ const Scan = () => {
             return;
         }
 
-        setLoading(true); // Display loading state during processing
+        setLoading(true);
         setError('');
         setOcrResult(null);
 
@@ -29,7 +31,12 @@ const Scan = () => {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            setOcrResult(response.data.ocr_result);
+
+            // Redirect to results with the event data
+            // Expecting backend to return { ..., event_data: { ... } }
+            const extractedData = response.data.event_data || response.data.ocr_result;
+            navigate('/results', { state: { eventData: extractedData } });
+
         } catch (err) {
             // Handle API errors properly by displaying messages to the user
             setError(err.response?.data?.detail || 'An error occurred during OCR processing.');
