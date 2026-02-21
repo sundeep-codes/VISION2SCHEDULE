@@ -31,15 +31,14 @@ Vision2Schedule is an intelligent application that allows users to upload event 
 
 ```text
 Vision2Schedule/
-├── backend/                  # Root python backend files
-│   ├── main.py               # FastAPI application entry point
-│   ├── auth.py               # User authentication logic
-│   ├── ocr.py / extract.py   # OCR processing and data extraction
-│   ├── events.py / calendar.py # Google Calendar & ICS integrations
-│   ├── scan_router.py        # API routes for scanning flyers
-│   ├── nearby.py / nearby_router.py # Nearby events logic
-│   ├── database.py / models.py # Database configuration and models
-│   └── security.py           # JWT and security utilities
+├── main.py               # FastAPI application entry point
+├── auth.py               # User authentication logic
+├── ocr.py / extract.py   # OCR processing and data extraction
+├── events.py / calendar.py # Google Calendar & ICS integrations
+├── scan_router.py        # API routes for scanning flyers
+├── nearby.py / nearby_router.py # Nearby events logic
+├── database.py / models.py # Database configuration and models
+├── security.py           # JWT and security utilities
 └── frontend/                 # React frontend application
     ├── src/
     │   ├── components/       # Reusable React components (Navbar, etc.)
@@ -50,14 +49,14 @@ Vision2Schedule/
 
 ## 🛠️ How to Run Locally
 
-### Backend Setup
+### Setup
 
-1. **Navigate to the project directory:**
+1. **Navigate to the project root directory:**
    ```bash
    cd Vision2Schedule
    ```
 
-2. **Create and activate a virtual environment (Optional but recommended):**
+2. **Backend: Create and activate a virtual environment (Optional but recommended):**
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
